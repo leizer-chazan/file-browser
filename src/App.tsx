@@ -7,6 +7,11 @@ import {
   type ExplorerEntry,
 } from './lib/fileTree'
 import { readImageMetadata, type ImageMetadata } from './lib/imageMetadata'
+import { getAncestorPaths, searchFileTree } from './lib/search'
+import { useDebouncedValue } from './hooks/useDebouncedValue'
+
+const SEARCH_DEBOUNCE_MS = 300
+const MAX_SEARCH_RESULTS = 100
 
 interface DirectoryHandleLike {
   readonly name: string
@@ -66,6 +71,7 @@ function TreeItem({
       <button
         className={`tree-row${selected ? ' selected' : ''}`}
         style={{ '--depth': depth } as CSSProperties}
+        data-path={entry.path}
         onClick={() => {
           onSelect(entry)
           if (isDirectory) onToggle(entry.path)
@@ -110,12 +116,13 @@ function App() {
   const [rootName, setRootName] = useState('')
   const [selectedPath, setSelectedPath] = useState('')
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set())
-  const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState('')
   const [imageMetadata, setImageMetadata] = useState<ImageMetadata | null>(null)
   const [imageError, setImageError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  const treeContainerRef = useRef<HTMLDivElement>(null)
   const metadataRequest = useRef(0)
 
   const root = useMemo(() => rootName ? buildFileTree(files, rootName) : null, [files, rootName])
@@ -123,10 +130,19 @@ function App() {
     () => root ? findEntry(root, selectedPath) : null,
     [root, selectedPath],
   )
-  const visibleRoot = useMemo(
-    () => root ? filterTree(root, search.trim().toLocaleLowerCase()) : null,
-    [root, search],
+  const debouncedSearchQuery = useDebouncedValue(searchInput, SEARCH_DEBOUNCE_MS)
+  const searchResults = useMemo(
+    () => root ? searchFileTree(root, debouncedSearchQuery, MAX_SEARCH_RESULTS) : [],
+    [root, debouncedSearchQuery],
   )
+
+  useEffect(() => {
+    if (!selectedPath) return
+    const row = treeContainerRef.current?.querySelector<HTMLElement>(
+      `[data-path="${CSS.escape(selectedPath)}"]`,
+    )
+    row?.scrollIntoView({ block: 'nearest' })
+  }, [selectedPath, expandedPaths])
 
   async function chooseFolder() {
     setError('')
@@ -155,7 +171,7 @@ function App() {
     setExpandedPaths(new Set([name]))
     setImageMetadata(null)
     setImageError('')
-    setSearch('')
+    setSearchInput('')
   }
 
   function handleDirectoryInput(event: ChangeEvent<HTMLInputElement>) {
@@ -191,6 +207,17 @@ function App() {
       else next.add(path)
       return next
     })
+  }
+
+  function handleSearchResultSelect(entry: ExplorerEntry) {
+    setExpandedPaths((current) => {
+      const next = new Set(current)
+      for (const ancestor of getAncestorPaths(entry.path)) next.add(ancestor)
+      if (entry.kind === 'directory') next.add(entry.path)
+      return next
+    })
+    selectEntry(entry)
+    setSearchInput('')
   }
 
   const isImage = selected?.kind === 'file' && Boolean(selected.file?.type.startsWith('image/'))
@@ -236,27 +263,58 @@ function App() {
             {...{ webkitdirectory: '', directory: '' } as InputHTMLAttributes<HTMLInputElement>}
           />
           {error && <p className="error-message" role="alert">{error}</p>}
-          <div className="tree-container">
-            {visibleRoot ? (
-              visibleRoot.kind === 'directory' ? (
-                <TreeItem
-                  entry={visibleRoot}
-                  depth={0}
-                  selectedPath={selectedPath}
-                  expandedPaths={expandedPaths}
-                  onSelect={selectEntry}
-                  onToggle={togglePath}
+          {root && (
+            <div className="search-box-wrapper">
+              <label className="search-box">
+                <span aria-hidden="true">⌕</span>
+                <input
+                  aria-label="Search files"
+                  placeholder="Search files"
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
                 />
-              ) : (
-                <TreeItem
-                  entry={visibleRoot}
-                  depth={0}
-                  selectedPath={selectedPath}
-                  expandedPaths={expandedPaths}
-                  onSelect={selectEntry}
-                  onToggle={togglePath}
-                />
-              )
+              </label>
+              {searchInput.trim() && (
+                <div className="search-results" role="listbox" aria-label="Search results">
+                  {searchResults.length ? (
+                    <>
+                      {searchResults.map((entry) => (
+                        <button
+                          key={entry.path}
+                          type="button"
+                          className="search-result-row"
+                          onClick={() => handleSearchResultSelect(entry)}
+                        >
+                          <span
+                            className={`entry-icon ${entry.kind === 'directory' ? 'folder-icon' : 'file-icon'}`}
+                            aria-hidden="true"
+                          >
+                            {entry.kind === 'directory' ? '▰' : '▤'}
+                          </span>
+                          <span className="search-result-path">{entry.path}</span>
+                        </button>
+                      ))}
+                      {searchResults.length === MAX_SEARCH_RESULTS && (
+                        <p className="search-results-note">Showing first {MAX_SEARCH_RESULTS} matches</p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="search-results-empty">No matches found</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          <div className="tree-container" ref={treeContainerRef}>
+            {root ? (
+              <TreeItem
+                entry={root}
+                depth={0}
+                selectedPath={selectedPath}
+                expandedPaths={expandedPaths}
+                onSelect={selectEntry}
+                onToggle={togglePath}
+              />
             ) : (
               <div className="empty-tree">
                 <span className="empty-folder-icon" aria-hidden="true">▰</span>
@@ -284,18 +342,6 @@ function App() {
                 </>
               )}
             </div>
-            {root && (
-              <label className="search-box">
-                <span aria-hidden="true">⌕</span>
-                <input
-                  aria-label="Search files"
-                  placeholder="Search files"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                />
-                <kbd>⌘ K</kbd>
-              </label>
-            )}
           </div>
 
           {selected ? (
@@ -396,15 +442,6 @@ function findEntry(root: ExplorerEntry, path: string): ExplorerEntry | null {
     if (found) return found
   }
   return null
-}
-
-function filterTree(entry: ExplorerEntry, query: string): ExplorerEntry | null {
-  if (!query || entry.name.toLocaleLowerCase().includes(query)) return entry
-  if (entry.kind !== 'directory') return null
-  const children = (entry.children ?? [])
-    .map((child) => filterTree(child, query))
-    .filter((child): child is ExplorerEntry => child !== null)
-  return children.length ? { ...entry, children } : null
 }
 
 export default App
