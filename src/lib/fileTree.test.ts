@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildFileTree, formatFileSize, getFileType, type LocalFile } from './fileTree'
+import { buildFileTree, formatFileSize, getAllDirectoryPaths, getFileType, type LocalFile } from './fileTree'
 
 function file(name: string, relativePath: string, type = '', size = 1024): LocalFile {
   return Object.assign(
@@ -27,6 +27,17 @@ describe('buildFileTree', () => {
     ], 'Gallery')
 
     expect(tree.children?.map(({ name }) => name)).toEqual(['photo2.jpg', 'photo10.jpg'])
+  })
+})
+
+describe('getAllDirectoryPaths', () => {
+  it('collects the root and every nested directory, excluding files', () => {
+    const tree = buildFileTree([
+      file('cover.png', 'Photos/Trips/cover.png', 'image/png'),
+      file('alpha.txt', 'Photos/alpha.txt'),
+    ], 'Photos')
+
+    expect(getAllDirectoryPaths(tree)).toEqual(['Photos', 'Photos/Trips'])
   })
 })
 

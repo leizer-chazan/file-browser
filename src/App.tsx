@@ -3,6 +3,7 @@ import type { ChangeEvent, CSSProperties, InputHTMLAttributes, ReactNode } from 
 import {
   buildFileTree,
   formatFileSize,
+  getAllDirectoryPaths,
   getFileType,
   type ExplorerEntry,
 } from './lib/fileTree'
@@ -215,6 +216,15 @@ function App() {
     }
   }
 
+  function expandAll() {
+    if (!root) return
+    setExpandedPaths(new Set(getAllDirectoryPaths(root)))
+  }
+
+  function collapseAll() {
+    setExpandedPaths(new Set())
+  }
+
   function togglePath(path: string) {
     setExpandedPaths((current) => {
       const next = new Set(current)
@@ -318,6 +328,16 @@ function App() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+          {root && (
+            <div className="tree-toolbar">
+              <button type="button" className="tree-toolbar-button" onClick={expandAll}>
+                Expand all
+              </button>
+              <button type="button" className="tree-toolbar-button" onClick={collapseAll}>
+                Collapse all
+              </button>
             </div>
           )}
           <div className="tree-container" ref={treeContainerRef}>

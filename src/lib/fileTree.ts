@@ -54,6 +54,15 @@ function sortEntries(entry: MutableEntry): void {
   entry.children?.forEach(sortEntries)
 }
 
+export function getAllDirectoryPaths(entry: ExplorerEntry): string[] {
+  if (entry.kind !== 'directory') return []
+  const paths = [entry.path]
+  for (const child of entry.children ?? []) {
+    paths.push(...getAllDirectoryPaths(child))
+  }
+  return paths
+}
+
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 bytes'
   if (!Number.isFinite(bytes) || bytes < 0) return '—'
