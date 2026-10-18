@@ -8,6 +8,7 @@ import {
 } from './lib/fileTree'
 import { readImageMetadata, type ImageMetadata } from './lib/imageMetadata'
 import { getAncestorPaths, searchFileTree } from './lib/search'
+import { countLines, isSupportedTextFile } from './lib/textLines'
 import { useDebouncedValue } from './hooks/useDebouncedValue'
 
 const SEARCH_DEBOUNCE_MS = 300
@@ -119,6 +120,8 @@ function App() {
   const [searchInput, setSearchInput] = useState('')
   const [imageMetadata, setImageMetadata] = useState<ImageMetadata | null>(null)
   const [imageError, setImageError] = useState('')
+  const [lineCount, setLineCount] = useState<number | null>(null)
+  const [lineCountError, setLineCountError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -187,6 +190,8 @@ function App() {
     setSelectedPath(entry.path)
     setImageMetadata(null)
     setImageError('')
+    setLineCount(null)
+    setLineCountError('')
     if (entry.kind === 'file' && entry.file && entry.file.type.startsWith('image/')) {
       void readImageMetadata(entry.file)
         .then((metadata) => {
@@ -195,6 +200,16 @@ function App() {
         .catch((cause: unknown) => {
           if (metadataRequest.current === requestId) {
             setImageError(cause instanceof Error ? cause.message : 'Image metadata could not be read.')
+          }
+        })
+    } else if (entry.kind === 'file' && entry.file && isSupportedTextFile(entry.file)) {
+      void entry.file.text()
+        .then((content) => {
+          if (metadataRequest.current === requestId) setLineCount(countLines(content))
+        })
+        .catch((cause: unknown) => {
+          if (metadataRequest.current === requestId) {
+            setLineCountError(cause instanceof Error ? cause.message : 'Lines could not be counted.')
           }
         })
     }
@@ -409,6 +424,9 @@ function App() {
                   <DetailRow label="Kind" value={selected.kind === 'directory' ? 'Folder' : getFileType(selected.file)} />
                   <DetailRow label="Size" value={selected.kind === 'directory' ? `${selected.children?.length ?? 0} items` : formatFileSize(selected.file?.size ?? 0)} />
                   <DetailRow label="Modified" value={selected.kind === 'file' && selected.file ? new Date(selected.file.lastModified).toLocaleString() : '—'} />
+                  {selected.kind === 'file' && selected.file && isSupportedTextFile(selected.file) && (
+                    <DetailRow label="Lines" value={lineCountError || (lineCount === null ? 'Counting…' : lineCount)} />
+                  )}
                   <DetailRow label="Location" value={selected.path} />
                 </div>
                 <div className="inspector-footnote">
