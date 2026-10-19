@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildFileTree, formatFileSize, getAllDirectoryPaths, getFileType, type LocalFile } from './fileTree'
+import { buildFileTree, formatFileSize, getAllDirectoryPaths, getFileType, isLargeFile, type LocalFile } from './fileTree'
 
 function file(name: string, relativePath: string, type = '', size = 1024): LocalFile {
   return Object.assign(
@@ -51,5 +51,13 @@ describe('file formatting helpers', () => {
   it('uses MIME type or falls back to the extension', () => {
     expect(getFileType(file('picture.png', 'Folder/picture.png', 'image/png'))).toBe('image/png')
     expect(getFileType(file('notes.md', 'Folder/notes.md'))).toBe('MD file')
+  })
+})
+
+describe('isLargeFile', () => {
+  it('flags files over 10MB and leaves smaller ones unflagged', () => {
+    expect(isLargeFile(10 * 1024 * 1024)).toBe(false)
+    expect(isLargeFile(10 * 1024 * 1024 + 1)).toBe(true)
+    expect(isLargeFile(0)).toBe(false)
   })
 })

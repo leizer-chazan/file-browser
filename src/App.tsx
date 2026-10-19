@@ -5,6 +5,7 @@ import {
   formatFileSize,
   getAllDirectoryPaths,
   getFileType,
+  isLargeFile,
   type ExplorerEntry,
 } from './lib/fileTree'
 import { readImageMetadata, type ImageMetadata } from './lib/imageMetadata'
@@ -442,7 +443,17 @@ function App() {
                 </div>
                 <div className="detail-list">
                   <DetailRow label="Kind" value={selected.kind === 'directory' ? 'Folder' : getFileType(selected.file)} />
-                  <DetailRow label="Size" value={selected.kind === 'directory' ? `${selected.children?.length ?? 0} items` : formatFileSize(selected.file?.size ?? 0)} />
+                  <DetailRow
+                    label="Size"
+                    value={selected.kind === 'directory' ? (
+                      `${selected.children?.length ?? 0} items`
+                    ) : (
+                      <>
+                        {formatFileSize(selected.file?.size ?? 0)}
+                        {isLargeFile(selected.file?.size ?? 0) && <span className="large-file-badge">Large</span>}
+                      </>
+                    )}
+                  />
                   <DetailRow label="Modified" value={selected.kind === 'file' && selected.file ? new Date(selected.file.lastModified).toLocaleString() : '—'} />
                   {selected.kind === 'file' && selected.file && isSupportedTextFile(selected.file) && (
                     <DetailRow label="Lines" value={lineCountError || (lineCount === null ? 'Counting…' : lineCount)} />

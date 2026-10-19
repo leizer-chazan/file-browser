@@ -72,6 +72,12 @@ export function formatFileSize(bytes: number): string {
   return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
 }
 
+const LARGE_FILE_THRESHOLD_BYTES = 10 * 1024 * 1024
+
+export function isLargeFile(size: number): boolean {
+  return size > LARGE_FILE_THRESHOLD_BYTES
+}
+
 export function getFileType(file?: Pick<LocalFile, 'name' | 'type'>): string {
   if (!file) return 'Unknown'
   if (file.type) return file.type
