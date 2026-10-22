@@ -1,6 +1,6 @@
 # v2 goal — Folder Insights: EARS requirements
 
-Level 4, exercise 1. These three requirements go into the PRD in exercise 6.
+Level 4, exercise 1. These requirements go into the PRD in exercise 6.
 
 ## 1. Event-driven
 When the user opens Folder Insights for a selected folder, the system shall show the total size of all files under that folder grouped by file extension (case-insensitive), sorted by total size descending.
@@ -16,6 +16,12 @@ While the folder is being scanned, the system shall show the number of files pro
 If a file has no extension, then the system shall count it under a "(no extension)" group rather than omitting it.
 
 - Test: `Makefile` (1 KB) → a "(no extension)" row with 1 KB.
+
+## 4. Event-driven — ten largest files
+When the scan of the selected folder finishes, the system shall list the ten largest files under that folder, each with its full path and size, largest first; files of equal size are ordered by full path A→Z.
+
+- Test: `b.bin` and `a.bin` both 4 MB, `c.bin` 9 MB → `c.bin`, `a.bin`, `b.bin`.
+- Test: a folder with only 3 files → all 3 are listed.
 
 ## Decisions to carry into the PRD
 - "File type" = file extension, case-insensitive (`.JPG` = `.jpg`).
