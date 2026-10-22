@@ -9,12 +9,14 @@ import {
   type ExplorerEntry,
 } from './lib/fileTree'
 import { readImageMetadata, type ImageMetadata } from './lib/imageMetadata'
+import { formatRelativeTime } from './lib/relativeTime'
 import { getAncestorPaths, searchFileTree } from './lib/search'
 import { countLines, isSupportedTextFile } from './lib/textLines'
 import { useDebouncedValue } from './hooks/useDebouncedValue'
 
 const SEARCH_DEBOUNCE_MS = 300
 const MAX_SEARCH_RESULTS = 100
+const RELATIVE_TIME_REFRESH_MS = 60_000
 
 interface DirectoryHandleLike {
   readonly name: string
@@ -126,6 +128,7 @@ function App() {
   const [lineCountError, setLineCountError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [now, setNow] = useState(() => Date.now())
   const inputRef = useRef<HTMLInputElement>(null)
   const treeContainerRef = useRef<HTMLDivElement>(null)
   const metadataRequest = useRef(0)
@@ -140,6 +143,11 @@ function App() {
     () => root ? searchFileTree(root, debouncedSearchQuery, MAX_SEARCH_RESULTS) : [],
     [root, debouncedSearchQuery],
   )
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), RELATIVE_TIME_REFRESH_MS)
+    return () => window.clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     if (!selectedPath) return
@@ -454,7 +462,15 @@ function App() {
                       </>
                     )}
                   />
-                  <DetailRow label="Modified" value={selected.kind === 'file' && selected.file ? new Date(selected.file.lastModified).toLocaleString() : '—'} />
+                  <DetailRow
+                    label="Modified"
+                    value={selected.kind === 'file' && selected.file ? (
+                      <>
+                        {new Date(selected.file.lastModified).toLocaleString()}
+                        <span className="relative-time">{formatRelativeTime(selected.file.lastModified, now)}</span>
+                      </>
+                    ) : '—'}
+                  />
                   {selected.kind === 'file' && selected.file && isSupportedTextFile(selected.file) && (
                     <DetailRow label="Lines" value={lineCountError || (lineCount === null ? 'Counting…' : lineCount)} />
                   )}
