@@ -3,7 +3,7 @@
 Level 4, exercise 1. These requirements go into the PRD in exercise 6.
 
 ## 1. Event-driven
-When the user opens Folder Insights for a selected folder, the system shall show the total size of all files under that folder grouped by file extension (case-insensitive), sorted by total size descending.
+When the scan of the selected folder finishes, the system shall show the total size of all files under that folder grouped by file extension (case-insensitive), sorted by total size descending.
 
 - Test: folder with `a.JPG` (2 MB), `b.jpg` (1 MB), `c.txt` (5 MB) → rows: `txt` 5 MB, then `jpg` 3 MB.
 

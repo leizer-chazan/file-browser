@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<!--
+  PRD Validation Report — skeleton template.
+
+  This file is a starter the synthesis pass fills in directly. There is no
+  substitution engine. The LLM:
+    1. Reads {doc_workspace}/review-rubric.md and every review-{slug}.md from
+       additional reviewers.
+    2. Copies this skeleton.
+    3. Replaces the placeholder content (everything between TEMPLATE markers)
+       with the consolidated review, preserving the structure and CSS.
+    4. Writes the result to {doc_workspace}/validation-report.html.
+    5. Writes a markdown twin to {doc_workspace}/validation-report.md.
+
+  Visual rules the LLM must preserve:
+    - The container width, the color tokens, the typography.
+    - One dimension = one collapsible <section class="dimension">.
+    - Verdict pill uses the verdict-* class matching its judgment.
+    - Severity badge uses the sev-* class matching its level.
+    - Each extra reviewer (adversarial, etc.) gets its own collapsible section
+      below the rubric dimensions.
+    - The footer always shows the artifact paths and timestamp.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PRD Validation: Folio v2 — Folder Insights PRD</title>
+<style>
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --border: #e7e5e4;
+    --text: #1c1917;
+    --muted: #78716c;
+
+    --verdict-strong: #16a34a;
+    --verdict-adequate: #65a30d;
+    --verdict-thin: #d97706;
+    --verdict-broken: #dc2626;
+
+    --sev-low: #64748b;
+    --sev-medium: #ca8a04;
+    --sev-high: #ea580c;
+    --sev-critical: #dc2626;
+
+    --grade-exc: #16a34a;
+    --grade-good: #65a30d;
+    --grade-fair: #d97706;
+    --grade-poor: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  header.report-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .title h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .title .subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .grade {
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    color: white;
+    font-size: 15px;
+    white-space: nowrap;
+  }
+  .grade-excellent { background: var(--grade-exc); }
+  .grade-good { background: var(--grade-good); }
+  .grade-fair { background: var(--grade-fair); }
+  .grade-poor { background: var(--grade-poor); }
+
+  .synthesis {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--muted);
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin-bottom: 24px;
+    font-size: 15.5px;
+  }
+  .synthesis p { margin: 0 0 10px; }
+  .synthesis p:last-child { margin-bottom: 0; }
+
+  .dimension-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .dim-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .dim-card .dim-name { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .dim-card .dim-verdict { font-size: 14px; font-weight: 600; }
+
+  section.dimension, section.reviewer-section { margin-bottom: 14px; }
+  section.dimension details, section.reviewer-section details {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  section summary {
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  section summary::-webkit-details-marker { display: none; }
+  section summary::before {
+    content: "▸";
+    display: inline-block;
+    color: var(--muted);
+    transition: transform 0.15s ease;
+  }
+  section details[open] summary::before { transform: rotate(90deg); }
+  section summary h2 {
+    display: inline;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    flex: 1;
+  }
+  .verdict-pill {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: white;
+  }
+  .verdict-strong { background: var(--verdict-strong); }
+  .verdict-adequate { background: var(--verdict-adequate); }
+  .verdict-thin { background: var(--verdict-thin); }
+  .verdict-broken { background: var(--verdict-broken); }
+
+  .dim-body { padding: 4px 20px 18px; }
+  .dim-judgment { color: var(--text); font-size: 14.5px; }
+  .dim-judgment p { margin: 0 0 10px; }
+
+  .findings-list { padding: 0 20px 4px; }
+  article.finding {
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+  }
+  article.finding:first-child { border-top: none; }
+  article.finding header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .badge {
+    font-size: 10.5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+  }
+  .badge-sev-low { background: rgba(100, 116, 139, 0.12); color: var(--sev-low); }
+  .badge-sev-medium { background: rgba(202, 138, 4, 0.14); color: var(--sev-medium); }
+  .badge-sev-high { background: rgba(234, 88, 12, 0.14); color: var(--sev-high); }
+  .badge-sev-critical { background: rgba(220, 38, 38, 0.14); color: var(--sev-critical); }
+  .finding-title { margin: 0; font-size: 15px; font-weight: 500; flex: 1; min-width: 200px; }
+  .finding-location { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: var(--muted); }
+  .finding-note, .finding-fix { margin-top: 6px; font-size: 14px; }
+  .finding-fix strong { color: var(--muted); font-weight: 500; }
+
+  .reviewer-source {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  .mechanical {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-top: 24px;
+    font-size: 14px;
+  }
+  .mechanical h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .mechanical ul { margin: 0; padding-left: 20px; }
+  .mechanical li { margin-bottom: 4px; color: var(--text); }
+
+  footer.report-footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  footer .meta { display: flex; gap: 24px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <header class="report-header">
+      <div class="title">
+        <h1>Folio v2 — Folder Insights PRD — Validation Report</h1>
+        <div class="subtitle">_bmad-output/planning-artifacts/prds/prd-file-browser-2026-10-25/prd.md</div>
+      </div>
+      <div class="grade grade-fair">Fair</div>
+    </header>
+
+    <div class="synthesis">
+      <p>This is a tight, honest PRD for a small brownfield feature. It has a clear thesis ("where the space went"), FRs that each come with concrete test cases, and real non-goals. Because there is a test case for nearly every rule, the weak spots are the state transitions the tests don't exercise: what happens after a finished scan when the selection changes, when the selected item is a file, or when a whole subfolder can't be read. There are also two definitional conflicts, one about hidden files and one about how file types are shown in the table.</p>
+      <p>The adversarial reviewer goes further. It finds that the PRD's claims "none is left as an assumption" (§0) and "Open Questions: None" (§8) don't hold. FR-1's trigger ("when the user opens") conflicts with FR-2 (no partial totals). FR-4's determinism depends on an undefined "full path" and A→Z collation. Cancellation, re-scan, symlinks and unreadable folders are unspecified. No scope creep was found.</p>
+    </div>
+
+    <div class="dimension-summary">
+      <div class="dim-card"><div class="dim-name">Decision-readiness</div><div class="dim-verdict" style="color: var(--verdict-strong)">strong</div></div>
+      <div class="dim-card"><div class="dim-name">Substance over theater</div><div class="dim-verdict" style="color: var(--verdict-strong)">strong</div></div>
+      <div class="dim-card"><div class="dim-name">Strategic coherence</div><div class="dim-verdict" style="color: var(--verdict-strong)">strong</div></div>
+      <div class="dim-card"><div class="dim-name">Done-ness clarity</div><div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div></div>
+      <div class="dim-card"><div class="dim-name">Scope honesty</div><div class="dim-verdict" style="color: var(--verdict-strong)">strong</div></div>
+      <div class="dim-card"><div class="dim-name">Downstream usability</div><div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div></div>
+      <div class="dim-card"><div class="dim-name">Shape fit</div><div class="dim-verdict" style="color: var(--verdict-strong)">strong</div></div>
+    </div>
+
+    <section class="dimension"><details>
+      <summary><h2>Decision-readiness</h2><span class="verdict-pill verdict-strong">strong</span></summary>
+      <div class="dim-body"><div class="dim-judgment"><p>Decisions are stated as decisions, not hedged. Examples: "it is not shown automatically", "There is no time target", and "No charts or other visualizations". SM-C1 names the trade-off directly: speed is given up for completeness and correctness.</p></div></div>
+      <div class="findings-list">
+        <article class="finding"><header><span class="badge badge-sev-low">low</span><h3 class="finding-title">The rejected live-partial-totals option isn't recorded</h3><span class="finding-location">§4.1, FR-2</span></header>
+          <div class="finding-note">Hiding all totals until the scan ends is a deliberate UX cost on large folders, and the PRD doesn't acknowledge it as one.</div>
+          <div class="finding-fix"><strong>Fix:</strong> Add one sentence saying live partial totals were considered and rejected because they would mislead.</div></article>
+      </div>
+    </details></section>
+
+    <section class="dimension"><details>
+      <summary><h2>Substance over theater</h2><span class="verdict-pill verdict-strong">strong</span></summary>
+      <div class="dim-body"><div class="dim-judgment"><p>There is one persona and one UJ, and the UJ drives the FRs: the counter maps to FR-2, the table to FR-1, the top 10 to FR-4, and "3 files skipped" to FR-5. The Vision is specific to this product. Nothing reads as furniture.</p></div></div>
+    </details></section>
+
+    <section class="dimension"><details>
+      <summary><h2>Strategic coherence</h2><span class="verdict-pill verdict-strong">strong</span></summary>
+      <div class="dim-body"><div class="dim-judgment"><p>Every FR serves either the answer (FR-1, FR-3, FR-4, FR-6) or the trust (FR-2, FR-5, FR-7, FR-9). Success is defined as conformance, which §7 states openly and which suits a course project.</p></div></div>
+      <div class="findings-list">
+        <article class="finding"><header><span class="badge badge-sev-low">low</span><h3 class="finding-title">SM-2 and SM-3 restate FR test cases</h3><span class="finding-location">§7</span></header>
+          <div class="finding-fix"><strong>Fix:</strong> Drop them, or say why they get extra weight.</div></article>
+      </div>
+    </details></section>
+
+    <section class="dimension"><details open>
+      <summary><h2>Done-ness clarity</h2><span class="verdict-pill verdict-adequate">adequate</span></summary>
+      <div class="dim-body"><div class="dim-judgment"><p>Most FRs have exact, checkable test cases, and these are the PRD's strongest feature. The gaps are in states and edge rules that no test touches.</p></div></div>
+      <div class="findings-list">
+        <article class="finding"><header><span class="badge badge-sev-high">high</span><h3 class="finding-title">The selection changes after a scan finishes</h3><span class="finding-location">§4.1, FR-7</span></header>
+          <div class="finding-note">FR-7 only covers a change "while a scan is running". Stale results for the old folder would break the rule that Insights "always describes this folder".</div>
+          <div class="finding-fix"><strong>Fix:</strong> Add an FR: when the selected folder changes while the view is open, a new scan starts. Add a test.</div></article>
+        <article class="finding"><header><span class="badge badge-sev-high">high</span><h3 class="finding-title">An unreadable subfolder isn't covered</h3><span class="finding-location">FR-5, §3</span></header>
+          <div class="finding-note">"Skipped file" is defined per file. When a whole folder can't be read, the number of files inside it is unknown.</div>
+          <div class="finding-fix"><strong>Fix:</strong> Define the behavior (for example "N files and M folders skipped") and add a test.</div></article>
+        <article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title">The selected item is a file, or nothing is selected</h3><span class="finding-location">§4.1, FR-1</span></header>
+          <div class="finding-fix"><strong>Fix:</strong> "Available only when a folder is selected", plus a test.</div></article>
+        <article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title">How file types are labeled is unspecified</h3><span class="finding-location">§3, FR-1 test</span></header>
+          <div class="finding-fix"><strong>Fix:</strong> "File types are shown in lowercase without the leading dot."</div></article>
+        <article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title">Names with several dots or a trailing dot</h3><span class="finding-location">§3, FR-6</span></header>
+          <div class="finding-fix"><strong>Fix:</strong> "The text after the last dot; empty counts as (no extension)", plus a test.</div></article>
+        <article class="finding"><header><span class="badge badge-sev-low">low</span><h3 class="finding-title">FR-1 has no tie-break for equal type totals; A→Z case handling is undefined; close/reopen is unspecified; the NFR has no update rate</h3><span class="finding-location">FR-1, FR-4, §4.1</span></header></article>
+      </div>
+    </details></section>
+
+    <section class="dimension"><details>
+      <summary><h2>Scope honesty</h2><span class="verdict-pill verdict-strong">strong</span></summary>
+      <div class="dim-body"><div class="dim-judgment"><p>The non-goals do real work, and the constraints and platform are stated. The only silent omissions are the Done-ness gaps.</p></div></div>
+      <div class="findings-list">
+        <article class="finding"><header><span class="badge badge-sev-low">low</span><h3 class="finding-title">Add a non-goal for live updates</h3><span class="finding-location">§5</span></header>
+          <div class="finding-fix"><strong>Fix:</strong> "No automatic re-scan when folder contents change on disk."</div></article>
+      </div>
+    </details></section>
+
+    <section class="dimension"><details open>
+      <summary><h2>Downstream usability</h2><span class="verdict-pill verdict-adequate">adequate</span></summary>
+      <div class="dim-body"><div class="dim-judgment"><p>The glossary is used consistently and the IDs resolve. One glossary entry contradicts an FR.</p></div></div>
+      <div class="findings-list">
+        <article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title">The "Hidden file" definition conflicts with FR-6</h3><span class="finding-location">§3 vs FR-6</span></header>
+          <div class="finding-note">The OS hidden attribute on Windows can't be seen from the browser, but FR-6 tests dotfiles.</div>
+          <div class="finding-fix"><strong>Fix:</strong> Redefine it as a leading-dot file, or say "every file the browser can read is counted".</div></article>
+        <article class="finding"><header><span class="badge badge-sev-low">low</span><h3 class="finding-title">The NFR has no ID</h3><span class="finding-location">§4.1, SM-4</span></header>
+          <div class="finding-fix"><strong>Fix:</strong> Name it NFR-1 and reference it by that ID.</div></article>
+      </div>
+    </details></section>
+
+    <section class="dimension"><details>
+      <summary><h2>Shape fit</h2><span class="verdict-pill verdict-strong">strong</span></summary>
+      <div class="dim-body"><div class="dim-judgment"><p>The weight is right for a single-user course project. The brownfield references hold up, and the PRD stays free of implementation detail without losing testability.</p></div></div>
+    </details></section>
+
+    <section class="reviewer-section"><details>
+      <summary><h2>Adversarial review</h2><span class="reviewer-source">review-adversarial-general.md</span></summary>
+      <div class="dim-body"><div class="dim-judgment"><p><strong>Not ready to call "final".</strong> The PRD is faithful to its sources and in scope, but "none is left as an assumption" and "Open Questions: None" don't hold. 0 critical, 4 high, 9 medium, 5 low.</p></div></div>
+      <div class="findings-list">
+        <article class="finding"><header><span class="badge badge-sev-high">high</span><h3 class="finding-title">H1 — FR-1 and FR-2 contradict each other on when totals appear</h3><span class="finding-location">FR-1, FR-2</span></header>
+          <div class="finding-note">FR-1's trigger is opening the view; FR-2 forbids totals until the scan ends. This is inherited from EARS and not flagged.</div>
+          <div class="finding-fix"><strong>Fix:</strong> Add a binding note under FR-1, or change the trigger to "when the scan finishes".</div></article>
+        <article class="finding"><header><span class="badge badge-sev-high">high</span><h3 class="finding-title">H2 — "Full path" and "A→Z" are underspecified, which breaks determinism</h3><span class="finding-location">§3, FR-4, SM-2</span></header>
+          <div class="finding-fix"><strong>Fix:</strong> Use a path relative to the root, the <code>/</code> separator and a named collation; add a mixed-case tie test.</div></article>
+        <article class="finding"><header><span class="badge badge-sev-high">high</span><h3 class="finding-title">H3 — Unreadable folders aren't covered</h3><span class="finding-location">§3, FR-5</span></header>
+          <div class="finding-fix"><strong>Fix:</strong> Add an FR to report skipped folders and the loss of the root folder.</div></article>
+        <article class="finding"><header><span class="badge badge-sev-high">high</span><h3 class="finding-title">H4 — No cancel, close or re-scan behavior</h3><span class="finding-location">FR-7, §4.1</span></header>
+          <div class="finding-fix"><strong>Fix:</strong> Closing the view stops the scan; every open scans fresh; define what happens when a file or the same folder is selected, and how a re-run starts.</div></article>
+        <article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title">M1–M9: symlinks and cycles; hidden-file definition; dotfile rule is new and tar.gz is undefined; "processed" undefined; vague NFR; files changing mid-scan; "every total" ambiguous; N/1 file wording; no correctness counter-metric</h3><span class="finding-location">see file</span></header></article>
+        <article class="finding"><header><span class="badge badge-sev-low">low</span><h3 class="finding-title">L1–L5: size units; near-empty folders; added test not labelled; "explicit action" undefined; no-persistence wording looser than the project rule</h3><span class="finding-location">see file</span></header></article>
+      </div>
+    </details></section>
+
+    <div class="mechanical">
+      <h3>Mechanical notes</h3>
+      <ul>
+        <li>The FR-1..FR-9, SM-1..SM-4 + SM-C1 and UJ-1 IDs are contiguous, and all cross-references resolve.</li>
+        <li>There are no [ASSUMPTION] tags, which is consistent with §8.</li>
+        <li>FR-5's template "N files skipped" vs the test "1 file skipped": state the plural rule.</li>
+        <li>"Under that folder" vs the glossary phrasing: unify them.</li>
+      </ul>
+    </div>
+
+    <footer class="report-footer">
+      <div class="meta">
+        <span>Rubric: .claude/skills/bmad-prd/assets/prd-validation-checklist.md</span>
+        <span>Generated: 2026-10-25T23:40</span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
